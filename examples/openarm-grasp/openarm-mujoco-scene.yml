@@ -1,3 +1,6 @@
+_unstable_debug:
+  publish_all_messages_to_zenoh: true
+
 nodes:
   # Minimal OpenArm-in-MuJoCo smoke test.
   #
@@ -11,13 +14,25 @@ nodes:
   - id: mujoco_sim
     build: uv sync --project ../../node-hub/dora-mujoco
     path: uv
-    args: run --project ../../node-hub/dora-mujoco dora-mujoco
+    args: run --project ../../node-hub/dora-mujoco python -m dora_mujoco
     inputs:
       tick: dora/timer/millis/2
+      camera_tick: dora/timer/millis/100
     outputs:
       - joint_positions
       - joint_velocities
       - actuator_controls
+      - joint_state
+      - left_joint_state
+      - right_joint_state
       - sensor_data
+      - image
+      - depth
     env:
       MODEL_NAME: "sim/scene.xml"
+      CAMERA_NAME: "pick_place_camera"
+      IMAGE_WIDTH: "1280"
+      IMAGE_HEIGHT: "720"
+      MUJOCO_GL: "egl"
+      SHOW_VIEWER: "true"
+      PYTHONPATH: "../../node-hub/dora-mujoco"
