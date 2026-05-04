@@ -1,0 +1,23 @@
+nodes:
+  # Minimal OpenArm-in-MuJoCo smoke test.
+  #
+  # Run from this directory:
+  #   dora build openarm-mujoco-scene.yml
+  #   dora run openarm-mujoco-scene.yml
+  #
+  # This only launches the simulated scene from the sibling openarm_mujoco clone
+  # and publishes MuJoCo state. It does not yet emulate the RealSense image/depth
+  # outputs or the dora-openarm driver contract used by pick-and-place.yml.
+  - id: mujoco_sim
+    build: uv sync --project ../../node-hub/dora-mujoco
+    path: uv
+    args: run --project ../../node-hub/dora-mujoco dora-mujoco
+    inputs:
+      tick: dora/timer/millis/2
+    outputs:
+      - joint_positions
+      - joint_velocities
+      - actuator_controls
+      - sensor_data
+    env:
+      MODEL_NAME: "sim/scene.xml"
