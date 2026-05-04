@@ -6,7 +6,7 @@
   <visual>
     <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
     <rgba haze="0.15 0.25 0.35 1"/>
-    <global azimuth="160" elevation="-10"/>
+    <global azimuth="160" elevation="-10" offwidth="1280" offheight="720"/>
     <quality shadowsize="8192"/>
   </visual>
 
@@ -40,5 +40,7 @@
       <geom name="green_recipient_front_wall" type="box" pos="0.095 0 0.03" size="0.006 0.07 0.03" material="green_box"/>
       <geom name="green_recipient_back_wall" type="box" pos="-0.095 0 0.03" size="0.006 0.07 0.03" material="green_box"/>
     </body>
+
+    <camera name="pick_place_camera" pos="0.05 0.88 0.62" xyaxes="-0.998 0.056 0 -0.019 -0.335 0.942" fovy="55"/>
   </worldbody>
 </mujoco>
