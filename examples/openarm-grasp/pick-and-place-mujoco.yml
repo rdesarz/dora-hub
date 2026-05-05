@@ -1,0 +1,147 @@
+_unstable_debug:
+  publish_all_messages_to_zenoh: true
+
+nodes:
+  # --- MuJoCo simulation: arm state, arm control, and RGBD camera ---
+  - id: mujoco_sim
+    build: uv sync --project ../../node-hub/dora-mujoco
+    path: uv
+    args: run --project ../../node-hub/dora-mujoco python -m dora_mujoco
+    inputs:
+      tick: dora/timer/millis/2
+      camera_tick: dora/timer/millis/100
+      joint_command:
+        source: motion_planner/joint_command
+        queue_size: 1
+      gripper_command:
+        source: motion_planner/gripper_command
+        queue_size: 1
+    outputs:
+      - image
+      - depth
+      - joint_state
+      - left_joint_state
+      - right_joint_state
+      - joint_positions
+      - joint_velocities
+      - actuator_controls
+    env:
+      MODEL_NAME: "sim/scene.xml"
+      CAMERA_NAME: "pick_place_camera"
+      IMAGE_WIDTH: "1280"
+      IMAGE_HEIGHT: "720"
+      MUJOCO_GL: "egl"
+      SHOW_VIEWER: "false"
+      PYTHONPATH: "../../node-hub/dora-mujoco"
+
+  # # --- SAM3 text-prompted segmentation ---
+  # - id: sam3
+  #   build: pip install -e ../../node-hub/dora-sam3
+  #   path: dora-sam3
+  #   inputs:
+  #     image:
+  #       source: mujoco_sim/image
+  #       queue_size: 1
+  #     text: selector/sam3_text
+  #     points: selector/sam3_points
+  #   outputs:
+  #     - masks
+  #   env:
+  #     SAM3_CONFIDENCE: "0.3"
+  #     SAM3_FP16: "true"
+
+  # # --- Grasp selector (SAM3 + VLM, with place detection) ---
+  # - id: selector
+  #   build: pip install numpy opencv-python-headless dora-rs pyarrow
+  #   path: grasp_selector.py
+  #   inputs:
+  #     image:
+  #       source: mujoco_sim/image
+  #       queue_size: 1
+  #     depth:
+  #       source: mujoco_sim/depth
+  #       queue_size: 1
+  #     trigger: mujoco_sim/image
+  #     vlm_response: vlm/text
+  #     mask: sam3/masks
+  #   outputs:
+  #     - vlm_request
+  #     - grasp_result
+  #     - sam3_text
+  #     - sam3_points
+  #   env:
+  #     IMAGE_WIDTH: "1280"
+  #     IMAGE_HEIGHT: "720"
+  #     TARGET_OBJECT: "the yellow block"
+  #     PLACE_CONTAINER: "the green recipient"
+  #     USE_THINK: "true"
+  #     OUTPUT_DIR: "."
+  #     USE_SAM2: "false"
+  #     USE_SAM3: "true"
+
+  # # --- VLM (thinking model for rating) ---
+  # - id: vlm
+  #   path: ../../target/release/dora-qwen-omni
+  #   args: >-
+  #     --model /home/champagne/models/qwen3.5-35b-a3b/Qwen3.5-35B-A3B-UD-Q4_K_M.gguf
+  #     --mmproj /home/champagne/models/qwen3.5-35b-a3b/mmproj-F16.gguf
+  #     --prompt Output:
+  #     -t 24
+  #     --n-predict 8192
+  #   inputs:
+  #     text: selector/vlm_request
+  #   outputs:
+  #     - text
+
+  # --- Motion planner with MuJoCo depth and simulated joint feedback ---
+  - id: motion_planner
+    build: pip install -e ../../node-hub/dora-motion-planner
+    path: dora-motion-planner
+    inputs:
+      image:
+        source: mujoco_sim/image
+        queue_size: 1
+      depth:
+        source: mujoco_sim/depth
+        queue_size: 1
+      joint_state: mujoco_sim/joint_state
+      grasp_result: selector/grasp_result
+      tick: dora/timer/millis/33
+    outputs:
+      - joint_trajectory
+      - joint_command
+      - gripper_command
+      - trajectory_status
+      - debug_image
+    env:
+      URDF_PATH: "../openarm/openarm_v10.urdf"
+      END_EFFECTOR_LINK: "openarm_left_hand_tcp"
+      CAMERA_TRANSFORM: "0.050000 0.880000 0.620000 0.016152 -0.022962 -0.816851 0.576166"
+      IMAGE_WIDTH: "1280"
+      IMAGE_HEIGHT: "720"
+      DOWNSAMPLE_STRIDE: "8"
+      SAFETY_MARGIN: "0.02"
+      NUM_WAYPOINTS: "300"
+      NUM_SEEDS: "8"
+      MAX_ITERS: "500"
+      DEVICE: "cuda"
+      GRASP_DEPTH_OFFSET: "-0.01"
+      PLACE_DEPTH_OFFSET: "0.05"
+      FLOOR_HEIGHT: "0.005"
+      APPROACH_MARGIN: "0.03"
+      PLAYBACK: "true"
+      DWELL_STEPS: "15"
+
+  # --- Visualizer (draws grasp points) ---
+  # - id: viz
+  #   build: pip install numpy opencv-python-headless dora-rs pyarrow
+  #   path: test_visualize_grasp.py
+  #   inputs:
+  #     image:
+  #       source: mujoco_sim/image
+  #       queue_size: 1
+  #     vlm_response: selector/grasp_result
+  #   env:
+  #     IMAGE_WIDTH: "1280"
+  #     IMAGE_HEIGHT: "720"
+  #     OUTPUT_DIR: "."

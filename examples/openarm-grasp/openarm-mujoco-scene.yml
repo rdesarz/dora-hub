@@ -36,3 +36,20 @@ nodes:
       MUJOCO_GL: "egl"
       SHOW_VIEWER: "true"
       PYTHONPATH: "../../node-hub/dora-mujoco"
+
+  - id: depth_viz
+    path: uv
+    args: run --project ../../node-hub/dora-mujoco python depth_visualizer.py
+    inputs:
+      depth:
+        source: mujoco_sim/depth
+        queue_size: 1
+    outputs:
+      - depth_image
+    env:
+      IMAGE_WIDTH: "1280"
+      IMAGE_HEIGHT: "720"
+      OUTPUT_DIR: "out/depth"
+      SAVE_EVERY: "10"
+      MIN_DEPTH_MM: "0"
+      MAX_DEPTH_MM: "2000"
